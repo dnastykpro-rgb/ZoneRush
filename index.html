@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ZoneRush</title>
+  <!-- Мультяшный округлый шрифт с поддержкой кириллицы -->
+  <link rel="preconnect" href="https://googleapis.com">
+  <link rel="preconnect" href="https://gstatic.com" crossorigin>
+  <link href="https://googleapis.com/css2?family=Fredoka:wght@600;700&family=Rubik:wght@600;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Игровой Canvas в высоком разрешении (HiDPI) -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- 1. Анимированная мультяшная заставка при входе -->
+  <div id="splashScreen" class="splash-screen">
+    <div class="splash-logo">
+      <span class="word-zone">ZONE</span><span class="word-rush">RUSH</span>
+    </div>
+    <div class="splash-loader">
+      <div class="splash-bar"></div>
+    </div>
+  </div>
+
+  <!-- 2. Экран запроса ника (показывается сразу после заставки при первом входе) -->
+  <div id="nicknameScreen" class="overlay hidden">
+    <div class="cartoon-card bounce-in">
+      <div class="card-badge">ДОБРО ПОЖАЛОВАТЬ!</div>
+      <h2 class="card-title">Как тебя зовут?</h2>
+      <p class="card-sub">Это имя увидят соперники на арене</p>
+      <input type="text" id="firstNickInput" class="cartoon-input" placeholder="Введи крутой ник..." maxlength="14" autocomplete="off">
+      <button id="saveFirstNickBtn" class="btn-3d btn-green">ДАЛЬШЕ</button>
+    </div>
+  </div>
+
+  <!-- 3. Главное меню -->
+  <div id="mainMenu" class="overlay hidden">
+    <!-- Верхняя панель прогресса (Уровень и награды каждые 5 уровней) -->
+    <div class="level-panel">
+      <div class="level-top">
+        <div class="level-star" id="menuLevelBadge">Ур. 1</div>
+        <div class="xp-counter" id="menuXpText">0 / 100 XP</div>
+      </div>
+      <div class="xp-track">
+        <div class="xp-fill" id="menuXpBar" style="width: 0%;"></div>
+      </div>
+      <div class="reward-hint" id="nextRewardHint">🎁 Новый наряд на 5 уровне!</div>
+    </div>
+
+    <!-- Центр меню -->
+    <div class="menu-body">
+      <div class="mini-logo">
+        <span class="word-zone">ZONE</span><span class="word-rush">RUSH</span>
+      </div>
+
+      <!-- Карточка персонажа (нажми, чтобы открыть гардероб) -->
+      <div class="hero-showcase" id="openWardrobeCard">
+        <div class="hero-glow"></div>
+        <canvas id="previewCanvas" width="120" height="120"></canvas>
+        <div class="hero-skin-tag" id="currentSkinName">Классик</div>
+      </div>
+
+      <!-- Быстрая смена ника -->
+      <input type="text" id="nicknameInput" class="cartoon-input compact" placeholder="Твой ник..." maxlength="14" autocomplete="off">
+
+      <div class="menu-actions">
+        <button id="playBtn" class="btn-3d btn-play">ИГРАТЬ</button>
+        <button id="wardrobeBtn" class="btn-3d btn-purple">👕 НАРЯДЫ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Гардероб (Выбор цветов и нарядов за уровни) -->
+  <div id="wardrobeModal" class="overlay hidden">
+    <div class="cartoon-card modal-large bounce-in">
+      <div class="modal-top">
+        <h2>Гардероб</h2>
+        <button id="closeWardrobeBtn" class="btn-close">✕</button>
+      </div>
+
+      <div class="section-label">Цвет зоны и куба</div>
+      <div id="colorPickerRow" class="color-row"></div>
+
+      <div class="section-label">Наряды (открываются каждые 5 уровней)</div>
+      <div id="skinsGrid" class="skins-grid"></div>
+    </div>
+  </div>
+
+  <!-- 5. Игровой интерфейс (HUD) во время матча -->
+  <div id="hud" class="hidden">
+    <div class="hud-top-left">
+      <div class="hud-pill zone-pill">
+        <span class="pill-label">ЗОНА</span>
+        <span class="pill-val" id="hudPercent">0.0%</span>
+      </div>
+      <div class="hud-pill kill-pill">
+        <span class="pill-label">КИЛЛЫ</span>
+        <span class="pill-val" id="hudKills">0</span>
+      </div>
+    </div>
+
+    <div class="hud-top-right">
+      <div class="lb-box">
+        <div class="lb-header">🏆 ТОП АРЕНЫ</div>
+        <div id="lbList"></div>
+      </div>
+    </div>
+
+    <div id="onlineBadge" class="online-pill">🌐 Игроков: 10</div>
+  </div>
+
+  <!-- 6. Экран окончания матча -->
+  <div id="gameOverModal" class="overlay hidden">
+    <div class="cartoon-card bounce-in">
+      <h2 id="gameOverTitle" class="gameover-title">Тебя поймали!</h2>
+
+      <div class="stats-box">
+        <div class="stat-line">
+          <span>Макс. зона:</span>
+          <strong id="resPercent">0.0%</strong>
+        </div>
+        <div class="stat-line">
+          <span>Уничтожено врагов:</span>
+          <strong id="resKills">0</strong>
+        </div>
+        <div class="stat-line xp-line">
+          <span>Заработано опыта:</span>
+          <strong id="resXp">+0 XP</strong>
+        </div>
+      </div>
+
+      <!-- Карточка приза за достижение кратного 5 уровня -->
+      <div id="rewardUnlockBox" class="prize-box hidden">
+        <div class="prize-tag">🎉 НОВЫЙ НАРЯД ОТКРЫТ!</div>
+        <div class="prize-title" id="unlockedSkinTitle">Корона Короля</div>
+      </div>
+
+      <div class="menu-actions">
+        <button id="restartBtn" class="btn-3d btn-play">ИГРАТЬ СНОВА</button>
+        <button id="toMenuBtn" class="btn-3d btn-gray">В ГЛАВНОЕ МЕНЮ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Скрипты игры -->
+  <script src="progression.js"></script>
+  <script type="module" src="network.js"></script>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
