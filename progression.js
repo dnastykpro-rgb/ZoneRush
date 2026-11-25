@@ -31,21 +31,14 @@ window.ZoneProgression = (function () {
   function load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        state = { ...state, ...parsed };
-      }
-    } catch (e) {
-      console.warn('Ошибка чтения сохранения', e);
-    }
+      if (raw) state = { ...state, ...JSON.parse(raw) };
+    } catch (e) {}
   }
 
   function save() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (e) {
-      console.warn('Ошибка записи сохранения', e);
-    }
+    } catch (e) {}
   }
 
   function getXpForNextLevel(lvl) {
@@ -53,11 +46,11 @@ window.ZoneProgression = (function () {
   }
 
   function getColorObj(colorId) {
-    return COLORS.find(c => c.id === colorId) || COLORS;
+    return COLORS.find(c => c.id === colorId) || COLORS.at(0);
   }
 
   function getSkinObj(skinId) {
-    return SKINS.find(s => s.id === skinId) || SKINS;
+    return SKINS.find(s => s.id === skinId) || SKINS.at(0);
   }
 
   function addMatchXp(maxPercent, kills) {
@@ -75,7 +68,7 @@ window.ZoneProgression = (function () {
       const newPrize = SKINS.find(s => s.reqLevel === state.level);
       if (newPrize) {
         unlockedSkin = newPrize;
-        state.skinId = newPrize.id; // Автоматически примеряем новый приз
+        state.skinId = newPrize.id;
       }
     }
 
@@ -102,7 +95,7 @@ window.ZoneProgression = (function () {
     }
     return false;
   }
-  // Универсальная отрисовка кубика персонажа и его наряда (используется и в меню, и в игре)
+
   function drawCharacter(ctx, x, y, size, colorId, skinId, angle = 0, time = 0) {
     const color = getColorObj(colorId);
     const half = size / 2;
@@ -111,12 +104,10 @@ window.ZoneProgression = (function () {
     ctx.save();
     ctx.translate(x, y);
 
-    // 1. Объемная 3D-тень под персонажем
     ctx.fillStyle = color.dark;
     roundRect(ctx, -half, -half + size * 0.14, size, size, radius);
     ctx.fill();
 
-    // 2. Основной корпус куба (для Радужного духа — переливающийся градиент)
     if (skinId === 'rainbow') {
       const hue = (time * 0.15) % 360;
       ctx.fillStyle = `hsl(${hue}, 85%, 58%)`;
@@ -131,27 +122,20 @@ window.ZoneProgression = (function () {
     roundRect(ctx, -half, -half, size, size, radius);
     ctx.fill();
 
-    // 3. Глянцевый верхний блик
     ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
     roundRect(ctx, -half + size * 0.1, -half + size * 0.08, size * 0.8, size * 0.32, radius * 0.6);
     ctx.fill();
 
-    // 4. Мультяшные глазки (смотрят в сторону движения)
     const lookX = Math.cos(angle) * (size * 0.1);
     const lookY = Math.sin(angle) * (size * 0.08);
 
     if (skinId === 'cyborg') {
-      // Светящийся красный визор киборга
       ctx.fillStyle = '#0f172a';
       roundRect(ctx, -size * 0.34 + lookX, -size * 0.14 + lookY, size * 0.68, size * 0.24, 6);
       ctx.fill();
       ctx.fillStyle = '#ef4444';
-      ctx.shadowColor = '#ef4444';
-      ctx.shadowBlur = 8;
       ctx.fillRect(-size * 0.26 + lookX, -size * 0.06 + lookY, size * 0.52, size * 0.08);
-      ctx.shadowBlur = 0;
     } else {
-      // Обычные живые глаза
       const eyeOffsetX = size * 0.18;
       const eyeY = -size * 0.04 + lookY;
       ctx.fillStyle = '#ffffff';
@@ -167,9 +151,7 @@ window.ZoneProgression = (function () {
       ctx.fill();
     }
 
-    // 5. Отрисовка нарядов (головных уборов и деталей)
     if (skinId === 'crown') {
-      // Золотая корона сверху
       ctx.fillStyle = '#facc15';
       ctx.strokeStyle = '#b45309';
       ctx.lineWidth = 2;
@@ -185,7 +167,6 @@ window.ZoneProgression = (function () {
       ctx.fill();
       ctx.stroke();
     } else if (skinId === 'cat') {
-      // Кошачьи ушки
       ctx.fillStyle = color.hex;
       ctx.beginPath();
       ctx.moveTo(-size * 0.38, -half + 4);
@@ -195,7 +176,6 @@ window.ZoneProgression = (function () {
       ctx.lineTo(size * 0.28, -half - size * 0.28);
       ctx.lineTo(size * 0.06, -half + 2);
       ctx.fill();
-      // Розовая серединка ушек
       ctx.fillStyle = '#f472b6';
       ctx.beginPath();
       ctx.moveTo(-size * 0.32, -half + 2);
@@ -206,17 +186,14 @@ window.ZoneProgression = (function () {
       ctx.lineTo(size * 0.12, -half + 2);
       ctx.fill();
     } else if (skinId === 'ninja') {
-      // Красная повязка ниндзя
       ctx.fillStyle = '#ef4444';
       ctx.fillRect(-half - 1, -size * 0.22, size + 2, size * 0.14);
-      // Развевающиеся ленточки сзади
       ctx.beginPath();
       ctx.moveTo(-half, -size * 0.16);
       ctx.lineTo(-half - size * 0.26, -size * 0.26 + Math.sin(time * 0.01) * 4);
       ctx.lineTo(-half - size * 0.22, -size * 0.06 + Math.sin(time * 0.01) * 4);
       ctx.fill();
     } else if (skinId === 'demon') {
-      // Острые рожки демона
       ctx.fillStyle = '#dc2626';
       ctx.beginPath();
       ctx.moveTo(-size * 0.3, -half + 2);
@@ -241,7 +218,6 @@ window.ZoneProgression = (function () {
     ctx.closePath();
   }
 
-  // Обновление UI меню и гардероба
   function refreshUI() {
     const needed = getXpForNextLevel(state.level);
     const pct = Math.min(100, Math.round((state.xp / needed) * 100));
@@ -263,11 +239,8 @@ window.ZoneProgression = (function () {
     document.getElementById('currentSkinName').textContent = curSkin.name;
 
     const nickInput = document.getElementById('nicknameInput');
-    if (nickInput && state.nickname) {
-      nickInput.value = state.nickname;
-    }
+    if (nickInput && state.nickname) nickInput.value = state.nickname;
 
-    // Отрисовка превью персонажа в главном меню
     const prevCanvas = document.getElementById('previewCanvas');
     if (prevCanvas) {
       const pCtx = prevCanvas.getContext('2d');
@@ -283,11 +256,7 @@ window.ZoneProgression = (function () {
       const dot = document.createElement('div');
       dot.className = 'color-dot' + (state.colorId === c.id ? ' active' : '');
       dot.style.background = c.hex;
-      dot.onclick = () => {
-        selectColor(c.id);
-        renderWardrobe();
-        refreshUI();
-      };
+      dot.onclick = () => { selectColor(c.id); renderWardrobe(); refreshUI(); };
       colorRow.appendChild(dot);
     });
 
@@ -296,15 +265,11 @@ window.ZoneProgression = (function () {
     SKINS.forEach(skin => {
       const unlocked = state.level >= skin.reqLevel;
       const item = document.createElement('div');
-      item.className = 'skin-item' +
-        (state.skinId === skin.id ? ' selected' : '') +
-        (!unlocked ? ' locked' : '');
+      item.className = 'skin-item' + (state.skinId === skin.id ? ' selected' : '') + (!unlocked ? ' locked' : '');
 
       const cvs = document.createElement('canvas');
-      cvs.width = 76;
-      cvs.height = 76;
-      const sCtx = cvs.getContext('2d');
-      drawCharacter(sCtx, 38, 44, 38, state.colorId, skin.id, 0, 1000);
+      cvs.width = 76; cvs.height = 76;
+      drawCharacter(cvs.getContext('2d'), 38, 44, 38, state.colorId, skin.id, 0, 1000);
 
       const title = document.createElement('div');
       title.className = 'skin-item-title';
@@ -319,13 +284,8 @@ window.ZoneProgression = (function () {
         lock.textContent = `🔒 ${skin.reqLevel} ур.`;
         item.appendChild(lock);
       } else {
-        item.onclick = () => {
-          selectSkin(skin.id);
-          renderWardrobe();
-          refreshUI();
-        };
+        item.onclick = () => { selectSkin(skin.id); renderWardrobe(); refreshUI(); };
       }
-
       grid.appendChild(item);
     });
   }
