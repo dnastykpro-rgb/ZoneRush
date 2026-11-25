@@ -1,7 +1,6 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Параметры круглой арены и сетки
 const GRID_SIZE = 140;
 const CELL_SIZE = 20;
 const ARENA_RADIUS = (GRID_SIZE * CELL_SIZE) / 2;
@@ -25,7 +24,6 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-// Игровое состояние
 let grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
 const entities = new Map();
 const particles = [];
@@ -36,7 +34,6 @@ let isPlaying = false;
 let matchStats = { maxPercent: 0, kills: 0 };
 let shakeTime = 0;
 
-// Управление (плавающий джойстик + клавиатура/мышь)
 const input = {
   active: false,
   startX: 0,
@@ -46,14 +43,10 @@ const input = {
   targetAngle: null
 };
 
-// ==========================================
-// 1. СЦЕНАРИЙ ЗАСТАВКИ И ЭКРАНОВ МЕНЮ
-// ==========================================
 function initFlows() {
   const prog = window.ZoneProgression;
   prog.refreshUI();
 
-  // Анимированная заставка (2.1 сек) -> затем запрос ника или главное меню
   setTimeout(() => {
     const splash = document.getElementById('splashScreen');
     splash.classList.add('fade-out');
@@ -67,9 +60,8 @@ function initFlows() {
       document.getElementById('mainMenu').classList.remove('hidden');
       prog.refreshUI();
     }
-  }, 2100);
+  }, 2000);
 
-  // Сохранение ника при первом входе
   document.getElementById('saveFirstNickBtn').addEventListener('click', () => {
     const val = document.getElementById('firstNickInput').value.trim() || 'Игрок';
     prog.setNickname(val);
@@ -78,7 +70,6 @@ function initFlows() {
     prog.refreshUI();
   });
 
-  // Кнопки главного меню
   document.getElementById('playBtn').addEventListener('click', startMatch);
   document.getElementById('restartBtn').addEventListener('click', startMatch);
 
@@ -88,7 +79,6 @@ function initFlows() {
     prog.refreshUI();
   });
 
-  // Гардероб
   const openWardrobe = () => {
     prog.renderWardrobe();
     document.getElementById('wardrobeModal').classList.remove('hidden');
@@ -101,12 +91,10 @@ function initFlows() {
   });
 }
 
-// ==========================================
-// 2. СЕНСОРНЫЙ ДЖОЙСТИК И КЛАВИАТУРА
-// ==========================================
 canvas.addEventListener('touchstart', (e) => {
   if (!isPlaying) return;
-  const t = e.touches;
+  const t = e.touches.item(0);
+  if (!t) return;
   input.active = true;
   input.startX = t.clientX;
   input.startY = t.clientY;
@@ -117,21 +105,17 @@ canvas.addEventListener('touchstart', (e) => {
 canvas.addEventListener('touchmove', (e) => {
   if (!isPlaying || !input.active) return;
   e.preventDefault();
-  const t = e.touches;
+  const t = e.touches.item(0);
+  if (!t) return;
   input.currX = t.clientX;
   input.currY = t.clientY;
   const dx = input.currX - input.startX;
   const dy = input.currY - input.startY;
-  if (Math.hypot(dx, dy) > 8) {
-    input.targetAngle = Math.atan2(dy, dx);
-  }
+  if (Math.hypot(dx, dy) > 8) input.targetAngle = Math.atan2(dy, dx);
 }, { passive: false });
 
-canvas.addEventListener('touchend', () => {
-  input.active = false;
-});
+canvas.addEventListener('touchend', () => { input.active = false; });
 
-// Поддержка ПК (мышь при зажатии + стрелки/WASD)
 canvas.addEventListener('mousedown', (e) => {
   if (!isPlaying) return;
   input.active = true;
@@ -140,16 +124,16 @@ canvas.addEventListener('mousedown', (e) => {
   input.currX = e.clientX;
   input.currY = e.clientY;
 });
+
 window.addEventListener('mousemove', (e) => {
   if (!isPlaying || !input.active) return;
   input.currX = e.clientX;
   input.currY = e.clientY;
   const dx = input.currX - input.startX;
   const dy = input.currY - input.startY;
-  if (Math.hypot(dx, dy) > 8) {
-    input.targetAngle = Math.atan2(dy, dx);
-  }
+  if (Math.hypot(dx, dy) > 8) input.targetAngle = Math.atan2(dy, dx);
 });
+
 window.addEventListener('mouseup', () => { input.active = false; });
 
 window.addEventListener('keydown', (e) => {
@@ -159,9 +143,6 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'ф') input.targetAngle = Math.PI;
   if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'в') input.targetAngle = 0;
 });
-// ==========================================
-// 3. ЛОГИКА СУЩНОСТЕЙ, БОТОВ И ЗАХВАТА ЗОН
-// ==========================================
 const BOT_NAMES = ['Кобра', 'Шустрый', 'Титан', 'Зефирка', 'Молния', 'Пиксель', 'Акула', 'Вулкан', 'Космос', 'Ниндзя'];
 
 function getRandomSpawnPoint() {
@@ -183,7 +164,7 @@ function paintStartBase(id, worldX, worldY) {
         const nx = gx + dx;
         const ny = gy + dy;
         if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
-          grid[ny][nx] = id;
+          grid.at(ny).splice(nx, 1, id);
         }
       }
     }
@@ -193,7 +174,7 @@ function paintStartBase(id, worldX, worldY) {
 function clearTerritory(id) {
   for (let y = 0; y < GRID_SIZE; y++) {
     for (let x = 0; x < GRID_SIZE; x++) {
-      if (grid[y][x] === id) grid[y][x] = null;
+      if (grid.at(y).at(x) === id) grid.at(y).splice(x, 1, null);
     }
   }
 }
@@ -221,8 +202,8 @@ function createBot(index) {
   const prog = window.ZoneProgression;
   const id = 'bot_' + index + '_' + Math.floor(Math.random() * 9999);
   const pos = getRandomSpawnPoint();
-  const colorObj = prog.COLORS[index % prog.COLORS.length];
-  const skinObj = prog.SKINS[Math.floor(Math.random() * prog.SKINS.length)];
+  const colorObj = prog.COLORS.at(index % prog.COLORS.length);
+  const skinObj = prog.SKINS.at(Math.floor(Math.random() * prog.SKINS.length));
 
   clearTerritory(id);
   paintStartBase(id, pos.x, pos.y);
@@ -230,7 +211,7 @@ function createBot(index) {
   entities.set(id, {
     id,
     isBot: true,
-    name: BOT_NAMES[index % BOT_NAMES.length],
+    name: BOT_NAMES.at(index % BOT_NAMES.length),
     x: pos.x,
     y: pos.y,
     angle: Math.random() * Math.PI * 2,
@@ -239,7 +220,6 @@ function createBot(index) {
     trail: [],
     alive: true,
     aiTimer: 0,
-    aiState: 'expand',
     aiTargetAngle: Math.random() * Math.PI * 2
   });
 }
@@ -258,12 +238,8 @@ function maintainBots() {
 
   for (let i = 0; i = 0 && nx < GRID_SIZE && ny >= 0 && ny  0) {
     const pctGain = ((newlyFilled / (Math.PI * (GRID_SIZE / 2) ** 2)) * 100).toFixed(1);
-    if (parseFloat(pctGain) >= 0.2) {
-      spawnFloatingText(entity.x, entity.y - 24, `+${pctGain}%`);
-    }
-    if (window.ZoneNet) {
-      window.ZoneNet.broadcastCapture(capturedCells, myId);
-    }
+    if (parseFloat(pctGain) >= 0.2) spawnFloatingText(entity.x, entity.y - 24, `+${pctGain}%`);
+    if (window.ZoneNet) window.ZoneNet.broadcastCapture(capturedCells, myId);
   }
 }
 
@@ -290,180 +266,6 @@ function killEntity(victimId, killerId = null) {
     entities.delete(victimId);
   }
 }
-
-function startMatch() {
-  const prog = window.ZoneProgression;
-  const nickVal = document.getElementById('nicknameInput').value.trim();
-  if (nickVal) prog.setNickname(nickVal);
-
-  const st = prog.getState();
-  myId = window.ZoneNet ? window.ZoneNet.myId : 'local_player';
-
-  document.getElementById('mainMenu').classList.add('hidden');
-  document.getElementById('gameOverModal').classList.add('hidden');
-  document.getElementById('hud').classList.remove('hidden');
-
-  matchStats = { maxPercent: 0, kills: 0 };
-  isPlaying = true;
-  input.active = false;
-  input.targetAngle = null;
-
-  const pos = getRandomSpawnPoint();
-  clearTerritory(myId);
-  paintStartBase(myId, pos.x, pos.y);
-
-  entities.set(myId, {
-    id: myId,
-    isBot: false,
-    name: st.nickname || 'Игрок',
-    x: pos.x,
-    y: pos.y,
-    angle: 0,
-    colorId: st.colorId,
-    skinId: st.skinId,
-    trail: [],
-    alive: true
-  });
-
-  maintainBots();
-}
-
-function endMatch() {
-  isPlaying = false;
-  input.active = false;
-  shakeTime = 0.35;
-
-  document.getElementById('hud').classList.add('hidden');
-  const res = window.ZoneProgression.addMatchXp(matchStats.maxPercent, matchStats.kills);
-
-  document.getElementById('resPercent').textContent = `${matchStats.maxPercent.toFixed(1)}%`;
-  document.getElementById('resKills').textContent = matchStats.kills;
-  document.getElementById('resXp').textContent = `+${res.gainedXp} XP`;
-
-  const prizeBox = document.getElementById('rewardUnlockBox');
-  if (res.unlockedSkin) {
-    document.getElementById('unlockedSkinTitle').textContent = res.unlockedSkin.name;
-    prizeBox.classList.remove('hidden');
-  } else {
-    prizeBox.classList.add('hidden');
-  }
-
-  setTimeout(() => {
-    document.getElementById('gameOverModal').classList.remove('hidden');
-  }, 450);
-}
-// ==========================================
-// 4. ОБНОВЛЕНИЕ ФИЗИКИ И ИИ БОТОВ
-// ==========================================
-function normalizeAngle(a) {
-  while (a > Math.PI) a -= Math.PI * 2;
-  while (a < -Math.PI) a += Math.PI * 2;
-  return a;
-}
-
-function updateBotAI(bot, dt) {
-  bot.aiTimer -= dt;
-  const distFromCenter = Math.hypot(bot.x - CENTER, bot.y - CENTER);
-
-  if (distFromCenter > ARENA_RADIUS - 140) {
-    bot.aiTargetAngle = Math.atan2(CENTER - bot.y, CENTER - bot.x);
-    bot.aiTimer = 0.6;
-  } else if (bot.aiTimer <= 0) {
-    if (bot.trail.length > 18) {
-      bot.aiTargetAngle += (Math.PI * 0.65) * (Math.random() > 0.5 ? 1 : -1);
-      bot.aiTimer = 0.9 + Math.random() * 0.8;
-    } else {
-      bot.aiTargetAngle += (Math.random() - 0.5) * 1.8;
-      bot.aiTimer = 0.7 + Math.random() * 1.1;
-    }
-  }
-
-  const diff = normalizeAngle(bot.aiTargetAngle - bot.angle);
-  bot.angle += Math.sign(diff) * Math.min(Math.abs(diff), TURN_SPEED * 0.85 * dt);
-}
-
-function updateWorld(dt) {
-  if (shakeTime > 0) shakeTime = Math.max(0, shakeTime - dt);
-
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
-    p.vx *= 0.92;
-    p.vy *= 0.92;
-    p.life -= dt;
-    if (p.life <= 0) particles.splice(i, 1);
-  }
-  for (let i = floatingTexts.length - 1; i >= 0; i--) {
-    const ft = floatingTexts[i];
-    ft.y -= 38 * dt;
-    ft.life -= dt;
-    if (ft.life <= 0) floatingTexts.splice(i, 1);
-  }
-
-  maintainBots();
-
-  entities.forEach((ent) => {
-    if (!ent.alive) return;
-
-    if (ent.id === myId && !ent.isBot) {
-      if (input.targetAngle !== null) {
-        const diff = normalizeAngle(input.targetAngle - ent.angle);
-        ent.angle += Math.sign(diff) * Math.min(Math.abs(diff), TURN_SPEED * dt);
-      }
-    } else if (ent.isBot) {
-      updateBotAI(ent, dt);
-    }
-
-    if (ent.id === myId || ent.isBot) {
-      ent.x += Math.cos(ent.angle) * PLAYER_SPEED * dt;
-      ent.y += Math.sin(ent.angle) * PLAYER_SPEED * dt;
-    }
-
-    if (Math.hypot(ent.x - CENTER, ent.y - CENTER) >= ARENA_RADIUS - 12) {
-      killEntity(ent.id);
-      return;
-    }
-
-    const gx = Math.floor(ent.x / CELL_SIZE);
-    const gy = Math.floor(ent.y / CELL_SIZE);
-    if (gx < 0 || gx >= GRID_SIZE || gy < 0 || gy >= GRID_SIZE) return;
-
-    if (grid[gy][gx] === ent.id) {
-      if (ent.trail.length > 0) captureZone(ent);
-    } else {
-      const last = ent.trail[ent.trail.length - 1];
-      if (!last || Math.hypot(ent.x - last.x, ent.y - last.y) > 10) {
-        ent.trail.push({ x: ent.x, y: ent.y });
-      }
-    }
-
-    entities.forEach((other) => {
-      if (!other.alive || other.trail.length < 3) return;
-      const limit = other.id === ent.id ? other.trail.length - 5 : other.trail.length;
-      for (let i = 0; i < limit; i++) {
-        const t = other.trail[i];
-        if (Math.hypot(ent.x - t.x, ent.y - t.y) < 13) {
-          killEntity(other.id, ent.id);
-          break;
-        }
-      }
-    });
-  });
-
-  const me = entities.get(myId);
-  if (isPlaying && me && me.alive && window.ZoneNet) {
-    window.ZoneNet.broadcastMove({
-      name: me.name,
-      x: me.x,
-      y: me.y,
-      angle: me.angle,
-      colorId: me.colorId,
-      skinId: me.skinId,
-      trail: me.trail
-    });
-  }
-}
 let hudTimer = 0;
 function updateHUD(dt) {
   hudTimer += dt;
@@ -475,7 +277,7 @@ function updateHUD(dt) {
 
   for (let y = 0; y < GRID_SIZE; y++) {
     for (let x = 0; x < GRID_SIZE; x++) {
-      const owner = grid[y][x];
+      const owner = grid.at(y).at(x);
       if (owner) counts[owner] = (counts[owner] || 0) + 1;
     }
   }
@@ -506,9 +308,6 @@ function updateHUD(dt) {
   });
 }
 
-// ==========================================
-// 5. ОТРИСОВКА В ВЫСОКОМ КАЧЕСТВЕ (HD RENDER)
-// ==========================================
 function render(now) {
   const prog = window.ZoneProgression;
   ctx.fillStyle = '#dbe4f0';
@@ -557,7 +356,6 @@ function render(now) {
   for (let y = startY; y <= endY; y += 40) {
     ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke();
   }
-
   const minGx = Math.max(0, Math.floor((camX - width / 2) / CELL_SIZE) - 1);
   const maxGx = Math.min(GRID_SIZE - 1, Math.ceil((camX + width / 2) / CELL_SIZE) + 1);
   const minGy = Math.max(0, Math.floor((camY - height / 2) / CELL_SIZE) - 1);
@@ -565,12 +363,12 @@ function render(now) {
 
   for (let y = minGy; y <= maxGy; y++) {
     for (let x = minGx; x <= maxGx; x++) {
-      const ownerId = grid[y][x];
+      const ownerId = grid.at(y).at(x);
       if (!ownerId) continue;
       const owner = entities.get(ownerId);
       const col = prog.getColorObj(owner ? owner.colorId : 'blue');
 
-      if (y + 1 < GRID_SIZE && grid[y + 1][x] !== ownerId) {
+      if (y + 1 < GRID_SIZE && grid.at(y + 1).at(x) !== ownerId) {
         ctx.fillStyle = col.dark;
         ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE + 5, CELL_SIZE + 0.6, CELL_SIZE + 0.6);
       }
@@ -579,6 +377,7 @@ function render(now) {
     }
   }
   ctx.restore();
+
   entities.forEach((ent) => {
     if (!ent.alive || ent.trail.length === 0) return;
     const col = prog.getColorObj(ent.colorId);
@@ -588,9 +387,11 @@ function render(now) {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(ent.trail.x, ent.trail.y);
+    const firstPt = ent.trail.at(0);
+    ctx.moveTo(firstPt.x, firstPt.y);
     for (let i = 1; i < ent.trail.length; i++) {
-      ctx.lineTo(ent.trail[i].x, ent.trail[i].y);
+      const pt = ent.trail.at(i);
+      ctx.lineTo(pt.x, pt.y);
     }
     ctx.lineTo(ent.x, ent.y);
     ctx.stroke();
@@ -626,7 +427,6 @@ function render(now) {
   ctx.globalAlpha = 1;
 
   ctx.restore();
-
   if (isPlaying && input.active) {
     ctx.save();
     ctx.beginPath();
@@ -648,10 +448,6 @@ function render(now) {
     ctx.restore();
   }
 }
-
-// ==========================================
-// 6. ПОДКЛЮЧЕНИЕ МУЛЬТИПЛЕЕРА И ЗАПУСК ЦИКЛА
-// ==========================================
 if (window.ZoneNet) {
   window.ZoneNet.connect({
     onPlayerUpdate: (peerId, data) => {
@@ -671,9 +467,9 @@ if (window.ZoneNet) {
     },
     onPlayerCapture: (peerId, data) => {
       if (data && Array.isArray(data.cells)) {
-        data.cells.forEach(([gx, gy]) => {
-          if (gx >= 0 && gx < GRID_SIZE && gy >= 0 && gy < GRID_SIZE) {
-            grid[gy][gx] = data.ownerId;
+        data.cells.forEach((cell) => {
+          if (cell.x >= 0 && cell.x < GRID_SIZE && cell.y >= 0 && cell.y < GRID_SIZE) {
+            grid.at(cell.y).splice(cell.x, 1, data.ownerId);
           }
         });
       }
