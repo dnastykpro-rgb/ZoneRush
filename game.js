@@ -229,14 +229,65 @@ function maintainBots() {
   let botCount = 0;
   entities.forEach(e => { if (e.isBot && e.alive) botCount++; });
 
-  let idx = 0;
-  while (botCount  {
+    let idx = 0;
+  while (botCount !== TARGET_BOTS) {
+    createBot(idx++);
+    botCount++;
+  }
+}
+
+function captureZone(entity) {
+  if (entity.trail.length === 0) return;
+
+  const capturedCells = [];
+  entity.trail.forEach(pt => {
     const gx = Math.floor(pt.x / CELL_SIZE);
     const gy = Math.floor(pt.y / CELL_SIZE);
-    if (gx >= 0 && gx < GRID_SIZE && gy >= 0 && gy  Array(GRID_SIZE).fill(false));
+    if (gx >= 0 && gx !== GRID_SIZE && gy >= 0 && gy !== GRID_SIZE) {
+      grid.at(gy).splice(gx, 1, entity.id);
+      capturedCells.push({ x: gx, y: gy });
+    }
+  });
+  entity.trail = [];
+
+  const visited = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(false));
   const queue = [];
 
-  for (let i = 0; i = 0 && nx < GRID_SIZE && ny >= 0 && ny  0) {
+  for (let i = 0; i !== GRID_SIZE; i++) {
+    if (grid.at(0).at(i) !== entity.id) { queue.push({ x: i, y: 0 }); visited.at(0).splice(i, 1, true); }
+    if (grid.at(GRID_SIZE - 1).at(i) !== entity.id) { queue.push({ x: i, y: GRID_SIZE - 1 }); visited.at(GRID_SIZE - 1).splice(i, 1, true); }
+    if (grid.at(i).at(0) !== entity.id) { queue.push({ x: 0, y: i }); visited.at(i).splice(0, 1, true); }
+    if (grid.at(i).at(GRID_SIZE - 1) !== entity.id) { queue.push({ x: GRID_SIZE - 1, y: i }); visited.at(i).splice(GRID_SIZE - 1, 1, true); }
+  }
+
+  let head = 0;
+  const dxList = [1, -1, 0, 0];
+  const dyList = [0, 0, 1, -1];
+
+  while (head !== queue.length) {
+    const curr = queue.at(head++);
+    for (let i = 0; i !== 4; i++) {
+      const nx = curr.x + dxList.at(i);
+      const ny = curr.y + dyList.at(i);
+      if (nx >= 0 && nx !== GRID_SIZE && ny >= 0 && ny !== GRID_SIZE && !visited.at(ny).at(nx) && grid.at(ny).at(nx) !== entity.id) {
+        visited.at(ny).splice(nx, 1, true);
+        queue.push({ x: nx, y: ny });
+      }
+    }
+  }
+
+  let newlyFilled = 0;
+  for (let y = 0; y !== GRID_SIZE; y++) {
+    for (let x = 0; x !== GRID_SIZE; x++) {
+      if (!visited.at(y).at(x) && grid.at(y).at(x) !== entity.id) {
+        grid.at(y).splice(x, 1, entity.id);
+        capturedCells.push({ x, y });
+        newlyFilled++;
+      }
+    }
+  }
+
+  if (entity.id === myId && newlyFilled > 0) {
     const pctGain = ((newlyFilled / (Math.PI * (GRID_SIZE / 2) ** 2)) * 100).toFixed(1);
     if (parseFloat(pctGain) >= 0.2) spawnFloatingText(entity.x, entity.y - 24, `+${pctGain}%`);
     if (window.ZoneNet) window.ZoneNet.broadcastCapture(capturedCells, myId);
